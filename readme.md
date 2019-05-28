@@ -41,7 +41,7 @@ Header - auth
 
 To get specific student info use localhost:5200/api/admin/students/*matric number of student*
 
-* #### Get All Lecturerss/Specific Student Info
+* #### Get All Lecturers/Specific Student Info
 URL - localhost:5200/api/admin/lecturers
 
 Method - get
