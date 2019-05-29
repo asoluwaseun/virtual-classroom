@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const formidable = require('formidable');
 const jwt = require("jsonwebtoken");
 
 //dbqueries
@@ -29,7 +31,7 @@ let admin = {
         //checks for user using email and verifies the password, 
         //then generates an auth code to be used for consequent api calls
         else{
-            query.read("id,email,name,password,user,email,role,date_registered","users","email",email,(results,err)=>{
+            query.read("id,email,name,password,email,role,date_registered","users","email",email,(results,err)=>{
                 if(results.length > 0 && results[0].role === 3){
                     bcrypt.compare(password, results[0].password, (err,result)=> {
                         if(result){
@@ -40,7 +42,7 @@ let admin = {
                                 name: results[0].name,
                                 date_registered: results[0].date_registered
                             }
-                            response.data.auth = jwt.sign({user_id: results.id},jwt_key);
+                            response.data.auth = jwt.sign({user_id: results[0].id},jwt_key);
     
                             res.json(response)
                         }
@@ -164,6 +166,7 @@ let admin = {
         let role = req.body.role;
         let auth = req.headers.auth;
         let response = {};
+        let form = new formidable.IncomingForm();
 
         //checks if any of the required parameters is empty
         if(!email || !name || !department || !role){
@@ -183,32 +186,43 @@ let admin = {
                 if (payload) {
                     let user_id = payload.user_id;
                     query.read("role","users","id",user_id,(results,err)=>{
-                        if(results[0].role === 3){
-                            if(role === "1"){
-                                create(1)
-                            }
-                            else if(role === "2"){
-                                create(2)
+                        if(results.length > 0){
+                            if(results[0].role === 3){
+                                if(role === "1"){
+                                    create(1)
+                                }
+                                else if(role === "2"){
+                                    create(2)
+                                }
+                                else{
+                                    response.status = "error";
+                                    response.statusCode = 401;
+                                    response.error = {
+                                        message: "role not chosen",
+                                    } 
+            
+                                    res.send(response);
+                                }
                             }
                             else{
                                 response.status = "error";
                                 response.statusCode = 401;
                                 response.error = {
-                                    message: "role not chosen",
+                                    message: "auth error",
                                 } 
         
                                 res.send(response);
                             }
-                        }
+                        } 
                         else{
                             response.status = "error";
                             response.statusCode = 401;
                             response.error = {
                                 message: "auth error",
                             } 
-    
+            
                             res.send(response);
-                        }
+                        }          
                     })
                 }
                 else{
@@ -239,75 +253,82 @@ let admin = {
                     bcrypt.genSalt(10, (err,salt)=>{
                         bcrypt.hash(email,salt,(err,hash)=>{
                             if(!err){
-                                let userSchema = {
-                                    name: name,
-                                    email: email,
-                                    password: hash,
-                                    role: role
-                                }
+                                form.parse(req,(err,fields,files)=>{
+                                  
+                                    let picture_path = files.picture.path
+                                    let fileStream = new Buffer(fs.readFileSync(picture_path)).toString("base64");
+                                    
+                                    let userSchema = {
+                                        name: name,
+                                        email: email,
+                                        password: hash,
+                                        role: role,
+                                        picture: fileStream
+                                    }
 
-                                query.create("users",userSchema,(results)=>{
-                                    if(results.affectedRows){
-                                        response.status = `${role === 2 ? "lecturer " : "student "}account created`;
-                                        response.statusCode = 201;
-                                        response.data = {
-                                            email: email,
-                                            name: name,
-                                            department: department
-                                        }
-
-                                        if(role === 1){
-                                            let studentCount = results.insertId;
-                                            studentCount++
-                                            matric =  studentCount.toLocaleString('en', {minimumIntegerDigits:4,minimumFractionDigits:0,useGrouping:false}); 
-				                            matricNo = (`ST${matric}`).toUpperCase();
-                                            let studentSchema = {
-                                                user_id: results.insertId,
-                                                matric: matricNo,
-                                                level: level,
+                                    query.create("users",userSchema,(results)=>{
+                                        if(results.affectedRows){
+                                            response.status = `${role === 2 ? "lecturer " : "student "}account created`;
+                                            response.statusCode = 201;
+                                            response.data = {
+                                                email: email,
+                                                name: name,
                                                 department: department
                                             }
-                                           
-                                            query.create("students",studentSchema,(results)=>{  
-                                                if(results.affectedRows){
-                                                    response.data.matric = matricNo;
-                                                    response.data.level = level;
 
-                                                    res.send(response)
+                                            if(role === 1){
+                                                let studentCount = results.insertId;
+                                                studentCount++
+                                                matric =  studentCount.toLocaleString('en', {minimumIntegerDigits:4,minimumFractionDigits:0,useGrouping:false}); 
+                                                matricNo = (`ST${matric}`).toUpperCase();
+                                                let studentSchema = {
+                                                    user_id: results.insertId,
+                                                    matric: matricNo,
+                                                    level: level,
+                                                    department: department
                                                 }
-                                            })
-                                        }
-                                        else if(role === 2){
-                                            let lecturerCount = results.insertId;
-                                            lecturerCount++
-                                            staff_no =  lecturerCount.toLocaleString('en', {minimumIntegerDigits:4,minimumFractionDigits:0,useGrouping:false}); 
-				                            staff_number = (`LT${staff_no}`).toUpperCase();
-                                           
-                                            let lecturerSchema = {
-                                                user_id: results.insertId,
-                                                staff_number: staff_number,
-                                                department: department
-                                            }
                                             
-                                            query.create("lecturers",lecturerSchema,(results)=>{
-                                                if(results.affectedRows){
-                                                    response.data.staff_number = staff_number;
+                                                query.create("students",studentSchema,(results)=>{  
+                                                    if(results.affectedRows){
+                                                        response.data.matric = matricNo;
+                                                        response.data.level = level;
 
-                                                    res.send(response)
+                                                        res.send(response)
+                                                    }
+                                                })
+                                            }
+                                            else if(role === 2){
+                                                let lecturerCount = results.insertId;
+                                                lecturerCount++
+                                                staff_no =  lecturerCount.toLocaleString('en', {minimumIntegerDigits:4,minimumFractionDigits:0,useGrouping:false}); 
+                                                staff_number = (`LT${staff_no}`).toUpperCase();
+                                            
+                                                let lecturerSchema = {
+                                                    user_id: results.insertId,
+                                                    staff_number: staff_number,
+                                                    department: department
                                                 }
-                                            })
+                                                
+                                                query.create("lecturers",lecturerSchema,(results)=>{
+                                                    if(results.affectedRows){
+                                                        response.data.staff_number = staff_number;
+
+                                                        res.send(response)
+                                                    }
+                                                })
+                                            }
                                         }
-                                    }
-                                    else{
-                                        response.status = "error";
-                                        response.statusCode = 500;
-                                        response.error = {
-                                            message: "server error",
-                                        } 
-                    
-                                        res.send(response);
-                                    }
-                                    // res.send(response)
+                                        else{
+                                            response.status = "error";
+                                            response.statusCode = 500;
+                                            response.error = {
+                                                message: "server error",
+                                            } 
+                        
+                                            res.send(response);
+                                        }
+                                        // res.send(response)
+                                    })
                                 })
                             }
                             else{
