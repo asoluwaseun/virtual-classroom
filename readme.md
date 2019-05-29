@@ -30,7 +30,7 @@ Method - post
 
 Header - auth
 
-Body - email, name, password, role ( 1 for student, 2 for lecturer), department, level(for student)
+Body - email, name, password, role ( 1 for student, 2 for lecturer), department, level(for student),picture
 
 * #### Get All Students/Specific Student Info
 URL - localhost:5200/api/admin/students
