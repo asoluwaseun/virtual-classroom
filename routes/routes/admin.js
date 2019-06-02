@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 //dbqueries
 const query = require('../../config/db/dbqueries');
 
-const jwt_key = "secret";
+const jwt_key = process.env.JWT_KEY;
 
 let admin = {
     //post call to login
