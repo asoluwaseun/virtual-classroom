@@ -160,8 +160,7 @@ let admin = {
     //post call to register student or lecturer
     new: (req,res)=>{
         
-        // let auth = req.headers.auth;
-        let auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpYXQiOjE1NTkzMjA5NzF9.lTnCmAtrwnnELInmxwlASkw23-OoDutpS2y_Bebi-M4"
+        let auth = req.headers.auth;
         let response = {};
         let form = new formidable.IncomingForm();
 
