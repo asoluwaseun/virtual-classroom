@@ -159,16 +159,21 @@ let admin = {
     
     //post call to register student or lecturer
     new: (req,res)=>{
-        let name = req.body.name;
-        let email = req.body.email;
-        let department = req.body.department;
-        let level = req.body.level;
-        let role = req.body.role;
-        let auth = req.headers.auth;
+        
+        // let auth = req.headers.auth;
+        let auth = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpYXQiOjE1NTkzMjA5NzF9.lTnCmAtrwnnELInmxwlASkw23-OoDutpS2y_Bebi-M4"
         let response = {};
         let form = new formidable.IncomingForm();
 
-        //checks if any of the required parameters is empty
+        form.parse(req,(err,fields,files)=>{
+            let name = fields.name;
+            let email = fields.email;
+            let department = fields.department;
+            let picture = files.picture;
+            let level = fields.level;
+            let role = fields.role;
+
+            //checks if any of the required parameters is empty
         if(!email || !name || !department || !role){
             response.status = "error";
             response.statusCode = 400;
@@ -253,19 +258,17 @@ let admin = {
                     bcrypt.genSalt(10, (err,salt)=>{
                         bcrypt.hash(email,salt,(err,hash)=>{
                             if(!err){
-                                form.parse(req,(err,fields,files)=>{
                                   
-                                    let picture_path = files.picture.path
-                                    let fileStream = new Buffer(fs.readFileSync(picture_path)).toString("base64");
+                                    let picture_path = picture.path
+                                    let fileStream = fs.readFileSync(picture_path);
                                     
                                     let userSchema = {
                                         name: name,
                                         email: email,
                                         password: hash,
                                         role: role,
-                                        picture: fileStream
+                                        picture: Buffer.from(fileStream).toString('base64')
                                     }
-
                                     query.create("users",userSchema,(results)=>{
                                         if(results.affectedRows){
                                             response.status = `${role === 2 ? "lecturer " : "student "}account created`;
@@ -329,7 +332,6 @@ let admin = {
                                         }
                                         // res.send(response)
                                     })
-                                })
                             }
                             else{
                                 response.status = "error";
@@ -345,6 +347,9 @@ let admin = {
                 }
             });
         }
+        })
+      
+        
     },
 
     //get request to get specific or all students info
